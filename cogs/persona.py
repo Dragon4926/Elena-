@@ -64,14 +64,21 @@ class PersonaBot(commands.Cog):
         logger.error(f"Command error: {error}", exc_info=True)
         
         if ctx.interaction:
+            embed = discord.Embed(
+                title="❌ Error",
+                description=str(error),
+                color=0xE74C3C
+            )
+            embed.set_footer(text="Please try again or contact support")
+            
             if not ctx.interaction.response.is_done():
                 await ctx.interaction.response.send_message(
-                    f"❌ Error: {str(error)}",
+                    embed=embed,
                     ephemeral=True
                 )
             else:
                 await ctx.interaction.followup.send(
-                    f"❌ Error: {str(error)}",
+                    embed=embed,
                     ephemeral=True
                 )
 

@@ -36,12 +36,17 @@ class PersonaCog(commands.Cog):
         self.ai_manager = GeminiManager()
         self.user_cooldowns: Dict[int, datetime] = {}  # {user_id: last_thread_creation}
         self.user_thread_counts: Dict[int, int] = {}  # {user_id: thread_count}
+        self._ready = asyncio.Event()
 
-        if not self.db_manager.is_connected():
+    async def cog_load(self) -> None:
+        """Async setup that runs when the cog is loaded"""
+        if not await self.db_manager.is_connected():
             logger.warning("Database connection not available. Persona persistence will be limited.")
 
         if not self.ai_manager.is_available():
             logger.warning("Gemini AI model not available. Persona features will be limited.")
+            
+        self._ready.set()
 
     async def check_rate_limit(self, user_id: int) -> None:
         """Check if user is rate limited"""
@@ -159,35 +164,61 @@ class PersonaCog(commands.Cog):
             description="Create and interact with AI personas in dedicated threads",
             color=0x7289DA
         )
+        embed.set_thumbnail(url="https://i.imgur.com/J5q7X3P.png")
 
-        embed.add_field(
-            name="📝 Creating Personas",
-            value=(
-                "Use `/persona_public` or `/persona_private` to create a thread with a custom AI persona.\n"
-                "• **Public threads**: Visible to all channel members\n"
-                "• **Private threads**: Only visible to you and invited members"
+        # Main help sections
+        sections = [
+            {
+                "name": "📝 Creating Personas",
+                "value": (
+                    "Use `/persona_public` or `/persona_private` to create a thread with a custom AI persona.\n"
+                    "• **Public threads**: Visible to all channel members\n"
+                    "• **Private threads**: Only visible to you and invited members"
+                )
+            },
+            {
+                "name": "⚙️ Requirements",
+                "value": (
+                    "• **Name**: 2-32 characters\n"
+                    "• **Avatar**: JPG, PNG or GIF image\n"
+                    "• **Persona**: (Optional) Detailed personality instructions"
+                )
+            },
+            {
+                "name": "📊 Limits",
+                "value": f"• Max {self.MAX_THREADS_PER_USER} active personas per user\n• {self.RATE_LIMIT.seconds//60} minute cooldown between creations"
+            }
+        ]
+
+        for section in sections:
+            embed.add_field(
+                name=section["name"],
+                value=section["value"],
+                inline=False
+            )
+
+        # Create buttons
+        buttons = [
+            discord.ui.Button(
+                style=discord.ButtonStyle.link,
+                label="Documentation",
+                url="https://example.com/docs",
+                emoji="📚"
             ),
-            inline=False
-        )
+            discord.ui.Button(
+                style=discord.ButtonStyle.link,
+                label="Support Server",
+                url="https://discord.gg/example",
+                emoji="🛠️"
+            )
+        ]
 
-        embed.add_field(
-            name="⚙️ Requirements",
-            value=(
-                "• **Name**: 2-32 characters\n"
-                "• **Avatar**: JPG, PNG or GIF image\n"
-                "• **Persona**: (Optional) Detailed personality instructions"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name="📊 Limits",
-            value=f"• Max {self.MAX_THREADS_PER_USER} active personas per user\n• {self.RATE_LIMIT.seconds//60} minute cooldown between creations",
-            inline=False
-        )
+        view = discord.ui.View()
+        for button in buttons:
+            view.add_item(button)
 
         embed.set_footer(text="Use /persona_status to check bot health and statistics")
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
     async def _create_persona_thread(
         self,

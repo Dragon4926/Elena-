@@ -29,6 +29,8 @@ class PersonaEvents(commands.Cog):
         self._db_manager: Optional[DatabaseManager] = None
         self._ai_manager: Optional[GeminiManager] = None
         self._last_response_times: Dict[int, datetime] = {}  # {thread_id: last_response_time}
+        self._thread_cache: Dict[int, Dict[str, Any]] = {}  # {thread_id: thread_data}
+        self._cache_lock = asyncio.Lock()
         self._lock = asyncio.Lock()
         
     @property
@@ -96,7 +98,7 @@ class PersonaEvents(commands.Cog):
 
     async def _get_thread_data(self, thread_id: int) -> Optional[Dict[str, Any]]:
         """
-        Retrieve thread data with validation
+        Retrieve thread data with validation, using caching where possible
         
         Args:
             thread_id: The Discord thread ID
@@ -104,10 +106,17 @@ class PersonaEvents(commands.Cog):
         Returns:
             Thread data if valid, None otherwise
         """
+        # Check cache first
+        async with self._cache_lock:
+            if thread_id in self._thread_cache:
+                logger.debug(f"Retrieved thread {thread_id} from cache")
+                return self._thread_cache[thread_id]
+                
         if not self.db_manager.is_connected():
             logger.warning(f"Database unavailable when processing thread {thread_id}")
             return None
             
+        # Get from database
         thread_data = await self.db_manager.get_thread_data(thread_id)
         if not thread_data:
             return None
@@ -117,6 +126,11 @@ class PersonaEvents(commands.Cog):
         if not all(field in thread_data for field in required_fields):
             logger.error(f"Invalid thread data for {thread_id}")
             return None
+            
+        # Update cache
+        async with self._cache_lock:
+            self._thread_cache[thread_id] = thread_data
+            logger.debug(f"Cached thread {thread_id} data")
             
         return thread_data
 

@@ -30,26 +30,31 @@ class Bot(commands.Bot):
         intents.members = True
         
         super().__init__(
-            command_prefix="!",
+            command_prefix=None,
             intents=intents,
             help_command=None
         )
 
     async def setup_hook(self) -> None:
         """Setup extensions and sync commands"""
+        from cogs.db_manager import DatabaseManager
+        
+        # Initialize database manager
+        self.db_manager = DatabaseManager()
+        try:
+            await self.db_manager.connect()
+        except Exception as e:
+            logger.error(f"Failed to connect to database: {e}")
+            self.db_manager = None
+            
         await self.load_extension("cogs.persona")
         await self.load_extension("cogs.persona_commands")
         await self.load_extension("cogs.persona_events")
+        await self.load_extension("cogs.vrising")
         
-        # Sync commands to test guild if in development
-        if os.getenv("ENV") == "dev":
-            test_guild = discord.Object(id=123456789012345678)  # Replace with your guild ID
-            self.tree.copy_global_to(guild=test_guild)
-            await self.tree.sync(guild=test_guild)
-            logger.info("Commands synced to test guild")
-        else:
-            await self.tree.sync()
-            logger.info("Commands synced globally")
+        # Sync commands globally
+        await self.tree.sync()
+        logger.info("Commands synced")
 
 async def main() -> None:
     """Main entry point"""

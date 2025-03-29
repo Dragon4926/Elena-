@@ -40,12 +40,17 @@ class DatabaseManager:
     async def connect(self) -> bool:
         """Establish async connection to MongoDB with retry logic"""
         try:
+            # Enable TLS/SSL for Atlas connections
+            tls = True if "mongodb+srv://" in self.mongo_uri else None
+            
             self.client = AsyncIOMotorClient(
                 self.mongo_uri,
                 serverSelectionTimeoutMS=5000,
                 server_api=ServerApi('1'),
                 maxPoolSize=100,
-                minPoolSize=10
+                minPoolSize=10,
+                tls=tls,
+                tlsAllowInvalidCertificates=True  # Only for development!
             )
             
             # Test connection
@@ -247,3 +252,52 @@ class DatabaseManager:
             self.db = None
             self.threads_collection = None
             logger.info("Closed database connection")
+
+    async def save_timer_data(self, timer_data: tuple) -> bool:
+        """
+        Save timer data to database
+        
+        Args:
+            timer_data: Tuple containing (end_time, channel_id, castle_level)
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            if not await self.is_connected():
+                raise ConnectionError("Database unavailable")
+                
+            end_time, channel_id, castle_level = timer_data
+            result = await self.threads_collection.update_one(
+                {"_id": "vrising_timer"},
+                {"$set": {
+                    "end_time": end_time,
+                    "channel_id": channel_id,
+                    "castle_level": castle_level
+                }},
+                upsert=True
+            )
+            return result.acknowledged
+        except Exception as e:
+            logger.error(f"Error saving timer data: {e}", exc_info=True)
+            raise QueryError("Failed to save timer data") from e
+
+    async def get_timer_data(self) -> Optional[tuple]:
+        """
+        Get timer data from database
+        
+        Returns:
+            Tuple of (end_time, channel_id, castle_level) or None if not found
+        """
+        try:
+            if not await self.is_connected():
+                raise ConnectionError("Database unavailable")
+                
+            data = await self.threads_collection.find_one({"_id": "vrising_timer"})
+            if not data:
+                return None
+                
+            return (data["end_time"], data["channel_id"], data["castle_level"])
+        except Exception as e:
+            logger.error(f"Error getting timer data: {e}", exc_info=True)
+            raise QueryError("Failed to get timer data") from e
