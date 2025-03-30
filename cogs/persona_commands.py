@@ -71,57 +71,37 @@ class PersonaCog(commands.Cog):
     @app_commands.command(name="persona_status", description="Check the status of the persona bot")
     async def persona_status(self, interaction: discord.Interaction) -> None:
         """Provides detailed status information about the bot"""
-        embed = discord.Embed(
-            title="🤖 Persona Bot Status",
-            description="Current status of AI persona services",
-            color=0x9B59B6
+        from utils.embed_builder import EmbedBuilder
+        
+        embed = EmbedBuilder.create_embed(
+            embed_type="status",
+            title="Persona Bot Status",
+            description="Current status of AI persona services"
         )
         
         # Uptime
         if hasattr(self.bot, 'startup_time') and self.bot.startup_time:
             uptime = discord.utils.utcnow() - self.bot.startup_time
-            embed.add_field(
-                name="⏱️ Uptime",
-                value=f"{uptime.days}d {uptime.seconds//3600}h {(uptime.seconds//60)%60}m",
-                inline=True
-            )
-
-        # Services status
-        embed.add_field(
-            name="🤖 AI Service",
-            value="✅ Online" if self.ai_manager.is_available() else "❌ Offline",
-            inline=True
-        )
+            uptime_str = f"{uptime.days}d {uptime.seconds//3600}h {(uptime.seconds//60)%60}m"
         
-        embed.add_field(
-            name="💾 Database",
-            value="✅ Online" if self.db_manager.is_connected() else "❌ Offline",
-            inline=True
-        )
+        # Services status
+        fields = {
+            "⏱️ Uptime": uptime_str if hasattr(self.bot, 'startup_time') else "Unknown",
+            "🦇 AI Service": "✅ Online" if self.ai_manager.is_available() else "❌ Offline",
+            "🧛‍♂️ Database": "✅ Online" if self.db_manager.is_connected() else "❌ Offline"
+        }
 
         # Thread statistics
         try:
             active_count = await self.db_manager.get_active_thread_count()
-            embed.add_field(
-                name="💬 Active Personas",
-                value=str(active_count),
-                inline=True
-            )
+            fields["🩸 Active Personas"] = str(active_count)
         except Exception as e:
             logger.error(f"Error getting thread count: {e}")
-            embed.add_field(
-                name="💬 Active Personas",
-                value="Unknown",
-                inline=True
-            )
+            fields["🩸 Active Personas"] = "Unknown"
 
-        # Version info
-        embed.add_field(
-            name="📦 Version",
-            value=f"Discord.py {discord.__version__}",
-            inline=False
-        )
+        fields["📜 Version"] = f"Discord.py {discord.__version__}"
 
+        EmbedBuilder.add_fields(embed, fields, inline=True)
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @app_commands.command(name="persona_private", description="Create a private roleplaying thread")
@@ -159,43 +139,34 @@ class PersonaCog(commands.Cog):
     @app_commands.command(name="persona_help", description="Learn how to use persona features")
     async def persona_help(self, interaction: discord.Interaction) -> None:
         """Show help information about persona commands"""
-        embed = discord.Embed(
-            title="🎭 Persona Bot Help",
-            description="Create and interact with AI personas in dedicated threads",
-            color=0x7289DA
+        from utils.embed_builder import EmbedBuilder
+        
+        embed = EmbedBuilder.create_embed(
+            embed_type="help",
+            title="Persona Bot Help",
+            description="Create and interact with AI personas in dedicated threads"
         )
         embed.set_thumbnail(url="https://i.imgur.com/J5q7X3P.png")
 
         # Main help sections
-        sections = [
-            {
-                "name": "📝 Creating Personas",
-                "value": (
-                    "Use `/persona_public` or `/persona_private` to create a thread with a custom AI persona.\n"
-                    "• **Public threads**: Visible to all channel members\n"
-                    "• **Private threads**: Only visible to you and invited members"
-                )
-            },
-            {
-                "name": "⚙️ Requirements",
-                "value": (
-                    "• **Name**: 2-32 characters\n"
-                    "• **Avatar**: JPG, PNG or GIF image\n"
-                    "• **Persona**: (Optional) Detailed personality instructions"
-                )
-            },
-            {
-                "name": "📊 Limits",
-                "value": f"• Max {self.MAX_THREADS_PER_USER} active personas per user\n• {self.RATE_LIMIT.seconds//60} minute cooldown between creations"
-            }
-        ]
-
-        for section in sections:
-            embed.add_field(
-                name=section["name"],
-                value=section["value"],
-                inline=False
+        sections = {
+            "📝 Creating Personas": (
+                "Use `/persona_public` or `/persona_private` to create a thread with a custom AI persona.\n"
+                "• **Public threads**: Visible to all channel members\n"
+                "• **Private threads**: Only visible to you and invited members"
+            ),
+            "⚙️ Requirements": (
+                "• **Name**: 2-32 characters\n"
+                "• **Avatar**: JPG, PNG or GIF image\n"
+                "• **Persona**: (Optional) Detailed personality instructions"
+            ),
+            "📊 Limits": (
+                f"• Max {self.MAX_THREADS_PER_USER} active personas per user\n"
+                f"• {self.RATE_LIMIT.seconds//60} minute cooldown between creations"
             )
+        }
+
+        EmbedBuilder.add_fields(embed, sections)
 
         # Create buttons
         buttons = [
@@ -342,19 +313,19 @@ class PersonaCog(commands.Cog):
             raise PersonaCommandError("Failed to save persona data")
 
         # Send welcome message
-        embed = discord.Embed(
-            title=f"🎭 Welcome to {name}'s Thread!",
-            description="Start chatting to interact with your AI persona.",
-            color=0x2ECC71
-        )
-        embed.set_thumbnail(url=avatar.url)
-        embed.add_field(
-            name="Personality",
-            value=final_persona[:1000] + ("..." if len(final_persona) > 1000 else ""),
-            inline=False
-        )
-        embed.set_footer(text=f"Created by {interaction.user.display_name}")
+        from utils.embed_builder import EmbedBuilder
         
+        embed = EmbedBuilder.create_embed(
+            embed_type="welcome",
+            title=f"Welcome to {name}'s Thread!",
+            description="Start chatting to interact with your AI persona.",
+            thumbnail=avatar.url
+        )
+        
+        personality = final_persona[:1000] + ("..." if len(final_persona) > 1000 else "")
+        EmbedBuilder.add_fields(embed, {"🧛‍♂️ Personality": personality})
+        
+        embed.set_footer(text=f"Created by {interaction.user.display_name}")
         await thread.send(embed=embed)
 
 async def setup(bot: commands.Bot) -> None:
