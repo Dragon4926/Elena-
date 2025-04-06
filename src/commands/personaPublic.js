@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, ChannelType } = require('discord.js');
 const logger = require('../lib/logger');
 const db = require('../lib/database');
 const { EmbedBuilder } = require('discord.js');
@@ -50,7 +50,7 @@ module.exports = {
       // Create thread
       const thread = await interaction.channel.threads.create({
         name: `${name} RP`,
-        type: 'PUBLIC_THREAD',
+        type: ChannelType.PublicThread,
         autoArchiveDuration: 1440
       });
 
