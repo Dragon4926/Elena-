@@ -1,0 +1,29 @@
+{
+  "name": "elena",
+  "version": "1.0.0",
+  "description": "Discord bot with persona features",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Dragon4926/Elena-.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Dragon4926/Elena-/issues"
+  },
+  "homepage": "https://github.com/Dragon4926/Elena-#readme",
+  "dependencies": {
+    "better-sqlite3": "^11.9.1",
+    "discord.js": "^14.18.0",
+    "dotenv": "^16.4.7",
+    "typeorm": "^0.3.21",
+    "winston": "^3.17.0"
+  }
+}
