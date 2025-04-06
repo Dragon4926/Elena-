@@ -1,8 +1,18 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
+const express = require('express');
 const logger = require('./lib/logger');
 const db = require('./lib/database');
 const fs = require('fs');
+const app = express();
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    uptime: process.uptime()
+  });
+});
 const path = require('path');
 
 // Initialize Discord client
@@ -53,18 +63,51 @@ async function loadEvents() {
   }
 }
 
+let server;
 async function startBot() {
-  if (!await db.connect()) {
-    logger.error('Failed to connect to database - exiting');
+  try {
+    if (!await db.connect()) {
+      throw new Error('Failed to connect to database');
+    }
+
+    // Load commands and events
+    await loadCommands();
+    await loadEvents();
+
+    // Login to Discord
+    await client.login(process.env.DISCORD_TOKEN);
+    
+    // Start HTTP server if in Vercel environment
+    if (process.env.VERCEL) {
+      const port = process.env.PORT || 3000;
+      server = app.listen(port, () => {
+        logger.info(`HTTP server listening on port ${port}`);
+      });
+    }
+
+    // Graceful shutdown
+    process.on('SIGTERM', gracefulShutdown);
+    process.on('SIGINT', gracefulShutdown);
+  } catch (error) {
+    logger.error('Bot startup failed:', error);
     process.exit(1);
   }
+}
 
-  // Load commands and events
-  await loadCommands();
-  await loadEvents();
-
-  // Login to Discord
-  await client.login(process.env.DISCORD_TOKEN);
+async function gracefulShutdown() {
+  logger.info('Shutting down gracefully...');
+  try {
+    if (server) {
+      await new Promise(resolve => server.close(resolve));
+    }
+    client.destroy();
+    await db.disconnect();
+    logger.info('Shutdown complete');
+    process.exit(0);
+  } catch (error) {
+    logger.error('Error during shutdown:', error);
+    process.exit(1);
+  }
 }
 
 // Handle command interactions
@@ -85,9 +128,7 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
-startBot().catch(error => {
-  logger.error('Bot startup failed:', error);
-  process.exit(1);
-});
+startBot();
 
-module.exports = client;
+// Export for Vercel
+module.exports = app;

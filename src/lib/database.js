@@ -6,16 +6,38 @@ const VRisingTimer = require('../models/VRisingTimer');
 class DatabaseService {
   constructor() {
     this.connection = null;
+    this.config = {
+      type: process.env.DB_TYPE || 'better-sqlite3',
+      database: process.env.DB_NAME || 'persona_bot.db',
+      host: process.env.DB_HOST,
+      port: process.env.DB_PORT,
+      username: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      synchronize: false,
+      logging: true,
+      entities: [PersonaThread, VRisingTimer],
+      extra: {
+        connectionLimit: process.env.DB_POOL_SIZE || 5,
+        idleTimeoutMillis: 30000
+      }
+    };
   }
 
   async connect() {
     try {
-      this.connection = await createConnection();
-      logger.info('Database connection established');
+      this.connection = await createConnection(this.config);
+      logger.info(`Database connection established (${this.config.type})`);
       return true;
     } catch (error) {
       logger.error('Database connection failed:', error);
       return false;
+    }
+  }
+
+  async disconnect() {
+    if (this.connection && this.connection.isConnected) {
+      await this.connection.close();
+      logger.info('Database connection closed');
     }
   }
 
