@@ -2,3 +2,5 @@
 .env
 .rooignore
 *.log
+persona_refactor_theme.md
+node_modules
