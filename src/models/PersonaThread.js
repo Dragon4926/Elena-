@@ -6,18 +6,31 @@ module.exports = new EntitySchema({
   columns: {
     id: {
       primary: true,
-      type: 'integer'
+      type: 'integer' // Using integer assuming Discord IDs fit, adjust if using snowflakes directly might need 'bigint' or 'text'
     },
     name: {
       type: 'text',
       nullable: false
     },
-    persona: {
+    // Removed 'persona' column
+    description: { // New field
       type: 'text',
       nullable: false
     },
-    history: {
+    personality: { // New field
       type: 'text',
+      nullable: false
+    },
+     first_message: { // New field
+      type: 'text',
+      nullable: false
+    },
+    scenario: { // New field
+      type: 'text',
+      nullable: true // Optional field
+    },
+    history: {
+      type: 'text', // Storing as JSON string
       nullable: false,
       transformer: {
         to: (value) => JSON.stringify(value),
@@ -29,19 +42,19 @@ module.exports = new EntitySchema({
       nullable: false
     },
     channel_id: {
-      type: 'integer',
+      type: 'integer', // Consider 'text' or 'bigint' if IDs exceed integer limits
       nullable: false
     },
     guild_id: {
-      type: 'integer',
+      type: 'integer', // Consider 'text' or 'bigint'
       nullable: true
     },
     created_by: {
-      type: 'integer',
+      type: 'integer', // Consider 'text' or 'bigint'
       nullable: false
     },
     created_at: {
-      type: 'text',
+      type: 'text', // Consider 'datetime' or 'timestamp' depending on DB and TypeORM config
       nullable: false
     },
     avatar_url: {
